@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:amq="http://activemq.apache.org/schema/core"
+	xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+       http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.5.0.xsd">
+
+	<!-- This creates an embedded ActiveMQ Broker -->
+	<broker xmlns="http://activemq.apache.org/schema/core" useJmx="true"
+		persistent="false">
+		<transportConnectors>
+			<transportConnector uri="tcp://localhost:61616" />
+		</transportConnectors>
+	</broker>
+
+	<!-- Lets connect the Camel ActiveMQ component to the embedded broker. See 
+		http://camel.apache.org/activemq.html for more information. -->
+	<bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+		<property name="brokerURL" value="failover:tcp://localhost:61616" />
+	</bean>
+
+	<!-- bean which ensures the database table is created -->
+	<bean id="orderCreateTable" class="org.surya.camel_akka.persister.OrderCreateTable">
+		<constructor-arg index="0" ref="camel" />
+	</bean>
+
+	<bean id="orderPersister" class="org.surya.camel_akka.persister.OrderPersister">
+	</bean>
+
+	<bean id="orderController" class="org.surya.camel_akka.route.processor.OrderController">
+		<constructor-arg index="0" ref="orderPersister" />
+	</bean>
+
+	<bean id="orderPublisher" class="org.surya.camel_akka.route.processor.OrderPublisher">
+		<constructor-arg index="0" ref="producerTemplate" />
+	</bean>
+
+
+	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+		<template id="producerTemplate" />
+		<dataFormats>
+			<jaxb id="orderJaxb" prettyPrint="true" contextPath="org.surya.camel_akka.message" />
+		</dataFormats>
+
+
+		<onException>
+			<!-- policy for when any exception occurred -->
+			<exception>java.lang.Exception</exception>
+			<!-- retry it at most 3 times -->
+			<redeliveryPolicy maximumRedeliveries="3" />
+			<!-- in case of still failure then lets handle it our self -->
+			<handled>
+				<constant>true</constant>
+			</handled>
+			<!-- where we transform a custom reply message with the error -->
+			<!--<transform> <method bean="order" method="replyError" /> </transform> -->
+			<!-- log a message in the log -->
+			<log message="Order failed" />
+			<!-- and important to mark the transaction to still rollback even if we 
+				handled the exception -->
+			<!-- this must be done as the last step in onException -->
+			<rollback markRollbackOnly="true" />
+		</onException>
+
+		<route>
+			<from uri="file:src/data?noop=true" />
+			<to uri="activemq:orders.input" />
+		</route>
+		<route>
+			<from uri="activemq:orders.input" />
+			<!-- denote that this route is transacted -->
+			<transacted />
+			<unmarshal ref="orderJaxb" />
+			<bean ref="orderController" method="processOrder" />
+			<bean ref="orderPublisher" method="publish" />
+			<log message="Order successfully processed" />
+		</route>
+	</camelContext>
+
+	<!-- the transaction manager which is a Spring JDBC TransactionManager -->
+	<bean id="txManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="myDataSource" />
+	</bean>
+
+	<bean id="myDataSource"
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="org.hsqldb.jdbcDriver" />
+		<property name="url" value="jdbc:hsqldb:mem:partner" />
+		<property name="username" value="sa" />
+		<property name="password" value="" />
+	</bean>
+
+</beans>
