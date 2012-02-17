@@ -15,8 +15,6 @@
 		</transportConnectors>
 	</broker>
 
-	<!-- Lets connect the Camel ActiveMQ component to the embedded broker. See 
-		http://camel.apache.org/activemq.html for more information. -->
 	<bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
 		<property name="brokerURL" value="failover:tcp://localhost:61616" />
 	</bean>
@@ -31,6 +29,7 @@
 
 	<bean id="orderController" class="org.surya.camel_akka.route.processor.OrderController">
 		<constructor-arg index="0" ref="orderPersister" />
+		<constructor-arg index="1" ref="producerTemplate" />
 	</bean>
 
 	<bean id="orderPublisher" class="org.surya.camel_akka.route.processor.OrderPublisher">
@@ -76,6 +75,10 @@
 			<bean ref="orderController" method="processOrder" />
 			<bean ref="orderPublisher" method="publish" />
 			<log message="Order successfully processed" />
+		</route>
+		<route>
+			<from uri="direct:marshalOrder" />
+			<marshal ref="orderJaxb"></marshal>
 		</route>
 	</camelContext>
 
