@@ -15,9 +15,29 @@
 		</transportConnectors>
 	</broker>
 
-	<bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+	<!-- <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent"> 
+		<property name="brokerURL" value="failover:tcp://localhost:61616" /> </bean> -->
+
+	<bean id="jmsConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
 		<property name="brokerURL" value="failover:tcp://localhost:61616" />
 	</bean>
+
+	<bean id="pooledConnectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory">
+		<property name="maxConnections" value="8" />
+		<property name="maximumActive" value="500" />
+		<property name="connectionFactory" ref="jmsConnectionFactory" />
+	</bean>
+
+	<bean id="jmsConfig" class="org.apache.camel.component.jms.JmsConfiguration">
+		<property name="connectionFactory" ref="pooledConnectionFactory" />
+		<property name="transacted" value="false" />
+		<property name="concurrentConsumers" value="10" />
+	</bean>
+
+	<bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+		<property name="configuration" ref="jmsConfig" />
+	</bean>
+
 
 	<!-- bean which ensures the database table is created -->
 	<bean id="orderCreateTable" class="org.surya.camel_akka.persister.OrderCreateTable">
@@ -36,6 +56,13 @@
 		<constructor-arg index="0" ref="producerTemplate" />
 	</bean>
 
+	<bean id="staxOrder" class="org.apache.camel.component.stax.StAXBuilder"
+		factory-method="stax">
+		<!-- FQN class name of the POJO with the JAXB annotations -->
+		<constructor-arg index="0"
+			value="org.surya.camel_akka.message.InputOrder" />
+	</bean>
+
 
 	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
 		<template id="producerTemplate" />
@@ -43,10 +70,11 @@
 			<jaxb id="orderJaxb" prettyPrint="true" contextPath="org.surya.camel_akka.message" />
 		</dataFormats>
 
-
 		<onException>
 			<!-- policy for when any exception occurred -->
 			<exception>java.lang.Exception</exception>
+			<exception>org.surya.camel_akka.exception.RunTimeAppException
+			</exception>
 			<!-- retry it at most 3 times -->
 			<redeliveryPolicy maximumRedeliveries="3" />
 			<!-- in case of still failure then lets handle it our self -->
@@ -65,7 +93,10 @@
 
 		<route>
 			<from uri="file:src/data?noop=true" />
-			<to uri="activemq:orders.input" />
+			<split streaming="true">
+				<ref>staxOrder</ref>
+				<to uri="activemq:orders.input" />
+			</split>
 		</route>
 		<route>
 			<from uri="activemq:orders.input" />

@@ -45,12 +45,6 @@ public class OrderPublisher {
 					"!!! Exception:  TradePublisher. Cause: ").append(ex
 					.getMessage());
 			throw new RunTimeAppException(sbr.toString(), ex);
-		} finally {
-			try {
-				template.stop();
-			} catch (Exception e) {
-				throw new RunTimeAppException(e);
-			}
 		}
 	}
 
