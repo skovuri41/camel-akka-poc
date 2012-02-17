@@ -24,7 +24,6 @@ public class OrderPublisher {
 
 	public void publish(
 			@Body EnumMap<MessageType, OutgoingMessage> outgoingMsgMap) {
-
 		try {
 			for (Entry<MessageType, OutgoingMessage> entry : outgoingMsgMap
 					.entrySet()) {
@@ -32,7 +31,7 @@ public class OrderPublisher {
 				OutgoingMessage outgoingMessageObj = entry.getValue();
 				for (String recipient : outgoingMessageObj.getRecipients()) {
 					log.info(
-							"Publishing message type {} to Recipeint {} with message \n {} ",
+							"Publishing message type {} to Recipient {} with message \n {} ",
 							new Object[] { msgType.name(), recipient,
 									outgoingMessageObj.getMsg() });
 					this.template.sendBodyAndHeaders(recipient,
@@ -40,12 +39,18 @@ public class OrderPublisher {
 							outgoingMessageObj.getHeaders());
 				}
 			}
-			template.stop();
+
 		} catch (Exception ex) {
 			StringBuilder sbr = new StringBuilder(
 					"!!! Exception:  TradePublisher. Cause: ").append(ex
 					.getMessage());
 			throw new RunTimeAppException(sbr.toString(), ex);
+		} finally {
+			try {
+				template.stop();
+			} catch (Exception e) {
+				throw new RunTimeAppException(e);
+			}
 		}
 	}
 

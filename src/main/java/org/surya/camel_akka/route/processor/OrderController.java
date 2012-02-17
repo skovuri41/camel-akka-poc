@@ -30,11 +30,15 @@ public class OrderController {
 
 		// validate order
 
-		// generate outgoingmessages enumMap
-		OutgoingMessage xmlMsg = new OutgoingMessage(MessageType.XML,
-				this.template.requestBody("direct:marshalOrder", order, String.class),
-				"activemq:orders.billing");
+		// enrich order with additional details
 
+		// generate outgoingmessages
+		// xml message for billing
+		OutgoingMessage xmlMsg = new OutgoingMessage(MessageType.XML,
+				this.template.requestBody("direct:marshalOrder", order,
+						String.class), "activemq:orders.billing");
+
+		// fixed length message to shipping
 		OutgoingMessage strMsg = new OutgoingMessage(MessageType.STRING,
 				order.toString(), "activemq:orders.shipping");
 
@@ -49,5 +53,4 @@ public class OrderController {
 		exchange.getIn().setBody(messageMap);
 
 	}
-
 }
