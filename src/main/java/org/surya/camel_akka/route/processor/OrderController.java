@@ -33,7 +33,7 @@ public class OrderController {
 		// enrich order with additional details
 
 		// generate outgoingmessages
-		// xml message for billing
+		// xml message to billing
 		OutgoingMessage xmlMsg = new OutgoingMessage(MessageType.XML,
 				this.template.requestBody("direct:marshalOrder", order,
 						String.class), "activemq:orders.billing");
