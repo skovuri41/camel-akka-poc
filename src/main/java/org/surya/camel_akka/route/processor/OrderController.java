@@ -29,6 +29,7 @@ public class OrderController {
 		log.info("Processing Order {}", order.getRefNo());
 
 		// validate order
+		order.setValidated(true);
 
 		// enrich order with additional details
 

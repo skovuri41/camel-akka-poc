@@ -9,7 +9,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(name = "", propOrder = { "customerId", "refNo", "partId", "amount" })
+@XmlType(name = "", propOrder = { "customerId", "refNo", "partId", "amount","validated" })
 @XmlRootElement(name = "inputOrder")
 public class InputOrder implements Serializable {
 
@@ -21,6 +21,8 @@ public class InputOrder implements Serializable {
 	protected String partId;
 	@XmlElement(required = true)
 	protected String amount;
+	@XmlElement
+	protected boolean validated;
 
 	/**
 	 * Gets the value of the customerId property.
@@ -105,14 +107,25 @@ public class InputOrder implements Serializable {
 	public void setAmount(String value) {
 		this.amount = value;
 	}
+	
+	
+	public boolean isValidated() {
+		return validated;
+	}
+
+	public void setValidated(boolean validated) {
+		this.validated = validated;
+	}
 
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		builder.append("InputOrder [customerId=").append(customerId)
 				.append(", refNo=").append(refNo).append(", partId=")
-				.append(partId).append(", amount=").append(amount).append("]");
+				.append(partId).append(", amount=").append(amount)
+				.append(", validated=").append(validated).append("]");
 		return builder.toString();
 	}
+
 
 }
