@@ -1,16 +1,14 @@
 package org.surya.camel_akka.actor;
 
-import akka.actor.UntypedActor;
+import org.surya.camel_akka.message.InputOrder;
+
+import akka.actor.TypedActor;
 import akka.event.EventHandler;
 
-public class OrderProcessor extends UntypedActor {
+public class OrderProcessor extends TypedActor implements IOrderProcessor {
 
-	@Override
-	public void onReceive(Object message) throws Exception {
-		if (message instanceof String)
-			EventHandler.info(this,
-					String.format("Received String message: %s", message));
-		else
-			throw new IllegalArgumentException("Unknown message: " + message);
+	public void processOrder(InputOrder order) {
+		EventHandler.info(this,
+				String.format("Received Order: %s", order.toString()));
 	}
 }
