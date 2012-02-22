@@ -27,7 +27,7 @@ public class OrderProcessRouteBuilder extends RouteBuilder {
 		jaxb.setPrettyPrint(true);
 
 		from("activemq:orders.input").transacted().routeId("OrderProcessRoute")
-				.log("Received On OrderProcessRoute-> ${body}").unmarshal(jaxb);
+				.log("Received On OrderProcessRoute-> \n ${body}").unmarshal(jaxb);
 
 		from("direct:marshalOrder").marshal(jaxb);
 	}

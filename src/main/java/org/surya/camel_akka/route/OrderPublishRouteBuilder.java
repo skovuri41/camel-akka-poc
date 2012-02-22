@@ -16,7 +16,7 @@ public class OrderPublishRouteBuilder extends RouteBuilder {
 		// Route
 		from("file:src/data?noop=true").split(stax(InputOrder.class))
 				.streaming().executorService(threadPool)
-				.log("Publishing to Queue ${body}");
+				.log("Publishing to Queue ${body}").to("activemq:orders.input");
 
 	}
 }
