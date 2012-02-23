@@ -1,12 +1,5 @@
-Camel Router Project
+Camel Akka Poc Project
 ====================
 
-To run this router either embed the jar inside Spring
-or to run the route from within maven try
-
-    mvn camel:run
-
-For more help see the Apache Camel documentation
-
-    http://camel.apache.org/
-    
+	Server: org.surya.camel_akka.service.OrderProcessorService
+    Client: org.surya.camel_akka.service.OrderPublisherClient

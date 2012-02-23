@@ -2,8 +2,10 @@
 
 <beans xmlns="http://www.springframework.org/schema/beans"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:amq="http://activemq.apache.org/schema/core"
+	xmlns:akka="http://akka.io/schema/akka"
 	xsi:schemaLocation="
        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://akka.io/schema/akka http://akka.io/akka-1.3.1.xsd
        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
        http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.5.0.xsd">
 
@@ -56,63 +58,6 @@
 		<constructor-arg index="0" ref="producerTemplate" />
 	</bean>
 
-	<bean id="staxOrder" class="org.apache.camel.component.stax.StAXBuilder"
-		factory-method="stax">
-		<!-- FQN class name of the POJO with the JAXB annotations -->
-		<constructor-arg index="0"
-			value="org.surya.camel_akka.message.InputOrder" />
-	</bean>
-
-
-	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
-		<template id="producerTemplate" />
-		<dataFormats>
-			<jaxb id="orderJaxb" prettyPrint="true" contextPath="org.surya.camel_akka.message" />
-		</dataFormats>
-
-		<onException>
-			<!-- policy for when any exception occurred -->
-			<exception>java.lang.Exception</exception>
-			<exception>org.surya.camel_akka.exception.RunTimeAppException
-			</exception>
-			<!-- retry it at most 3 times -->
-			<redeliveryPolicy maximumRedeliveries="3" />
-			<!-- in case of still failure then lets handle it our self -->
-			<handled>
-				<constant>true</constant>
-			</handled>
-			<!-- where we transform a custom reply message with the error -->
-			<!--<transform> <method bean="order" method="replyError" /> </transform> -->
-			<!-- log a message in the log -->
-			<log message="Order failed" />
-			<!-- and important to mark the transaction to still rollback even if we 
-				handled the exception -->
-			<!-- this must be done as the last step in onException -->
-			<rollback markRollbackOnly="true" />
-		</onException>
-
-		<route>
-			<from uri="file:src/data?noop=true" />
-			<split streaming="true">
-				<ref>staxOrder</ref>
-				<to uri="activemq:orders.input" />
-			</split>
-		</route>
-		<route>
-			<from uri="activemq:orders.input" />
-			<!-- denote that this route is transacted -->
-			<transacted />
-			<unmarshal ref="orderJaxb" />
-			<bean ref="orderController" method="processOrder" />
-			<bean ref="orderPublisher" method="publish" />
-			<log message="Order successfully processed" />
-		</route>
-		<route>
-			<from uri="direct:marshalOrder" />
-			<marshal ref="orderJaxb"></marshal>
-		</route>
-	</camelContext>
-
 	<!-- the transaction manager which is a Spring JDBC TransactionManager -->
 	<bean id="txManager"
 		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
@@ -127,4 +72,22 @@
 		<property name="password" value="" />
 	</bean>
 
+	<bean id="orderPublishRoute" class="org.surya.camel_akka.route.OrderPublishRouteBuilder" />
+
+	<bean id="orderProcessRoute" class="org.surya.camel_akka.route.OrderProcessRouteBuilder" />
+
+	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+		<template id="producerTemplate" />
+		<routeBuilder ref="orderPublishRoute" />
+		<routeBuilder ref="orderProcessRoute" />
+	</camelContext>
+
+	<akka:camel-service>
+		<akka:camel-context ref="camel" />
+	</akka:camel-service>
+
+	<akka:typed-actor id="orderActor"
+		interface="org.surya.camel_akka.actor.IOrderProcessor" implementation="org.surya.camel_akka.actor.OrderProcessor"
+		timeout="3000" scope="prototype">
+	</akka:typed-actor>
 </beans>

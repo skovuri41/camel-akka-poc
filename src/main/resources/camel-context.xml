@@ -25,7 +25,7 @@
 	</bean>
 
 	<bean id="pooledConnectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory">
-		<property name="maxConnections" value="8" />
+		<property name="maxConnections" value="10" />
 		<property name="maximumActive" value="500" />
 		<property name="connectionFactory" ref="jmsConnectionFactory" />
 	</bean>
@@ -78,7 +78,7 @@
 
 	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
 		<template id="producerTemplate" />
-		<routeBuilder ref="orderPublishRoute" />
+		<!-- <routeBuilder ref="orderPublishRoute" /> -->
 		<routeBuilder ref="orderProcessRoute" />
 	</camelContext>
 
@@ -86,8 +86,16 @@
 		<akka:camel-context ref="camel" />
 	</akka:camel-service>
 
-	<akka:typed-actor id="orderActor"
+	<akka:dispatcher id="dispatcher-1" type="executor-based-event-driven-work-stealing"
+		name="myDispatcher">
+		<akka:thread-pool queue="bounded-linked-blocking-queue"
+			capacity="10" fairness="true" core-pool-size="1" max-pool-size="20"
+			keep-alive="60" rejection-policy="caller-runs-policy" />
+	</akka:dispatcher>
+
+	<akka:typed-actor id="orderActor" 
 		interface="org.surya.camel_akka.actor.IOrderProcessor" implementation="org.surya.camel_akka.actor.OrderProcessor"
-		timeout="1000" scope="prototype">
+		timeout="3000" scope="prototype">
+		<akka:dispatcher ref="dispatcher-1"/>
 	</akka:typed-actor>
 </beans>
