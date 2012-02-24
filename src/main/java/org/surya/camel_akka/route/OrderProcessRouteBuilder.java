@@ -19,17 +19,19 @@ public class OrderProcessRouteBuilder extends RouteBuilder {
 				.redeliveryDelay(1000));
 
 		onException(RunTimeAppException.class, Exception.class).handled(true)
-				.maximumRedeliveries(2).useOriginalMessage()
+				.maximumRedeliveries(1).useOriginalMessage()
 				.redeliveryDelay(2000).logRetryAttempted(true)
 				.retryAttemptedLogLevel(LoggingLevel.INFO).rollback();
 
 		JaxbDataFormat jaxb = new JaxbDataFormat("org.surya.camel_akka.message");
 		jaxb.setPrettyPrint(true);
 
-		from("activemq:orders.input").transacted().routeId("OrderProcessRoute")
-				.log("Received On OrderProcessRoute->").unmarshal(jaxb)
-				.to("typed-actor:orderActor?method=processOrder");
+		from("direct:marshalOrder").routeId("DirectJaxb").marshal(jaxb);
 
-		from("direct:marshalOrder").marshal(jaxb);
+		from("activemq:orders.input").transacted().routeId("OrderProcessRoute")
+				.log("Received On OrderProcessRoute->")
+				// .unmarshal(jaxb)
+				.to("typed-actor:orderTaker?method=processOrder");
+
 	}
 }

@@ -9,30 +9,18 @@
        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
        http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.5.0.xsd">
 
-	<!-- This creates an embedded ActiveMQ Broker -->
-	<broker xmlns="http://activemq.apache.org/schema/core" useJmx="true"
-		persistent="false">
-		<transportConnectors>
-			<transportConnector uri="tcp://localhost:61616" />
-		</transportConnectors>
-	</broker>
-
-	<!-- <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent"> 
-		<property name="brokerURL" value="failover:tcp://localhost:61616" /> </bean> -->
-
 	<bean id="jmsConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
-		<property name="brokerURL" value="failover:tcp://localhost:61616" />
+		<property name="brokerURL" value="tcp://localhost:61616" />
 	</bean>
 
 	<bean id="pooledConnectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory">
 		<property name="maxConnections" value="10" />
-		<property name="maximumActive" value="500" />
+		<property name="maximumActive" value="100" />
 		<property name="connectionFactory" ref="jmsConnectionFactory" />
 	</bean>
 
 	<bean id="jmsConfig" class="org.apache.camel.component.jms.JmsConfiguration">
 		<property name="connectionFactory" ref="pooledConnectionFactory" />
-		<property name="transacted" value="false" />
 		<property name="concurrentConsumers" value="10" />
 	</bean>
 
@@ -72,30 +60,32 @@
 		<property name="password" value="" />
 	</bean>
 
-	<bean id="orderPublishRoute" class="org.surya.camel_akka.route.OrderPublishRouteBuilder" />
-
 	<bean id="orderProcessRoute" class="org.surya.camel_akka.route.OrderProcessRouteBuilder" />
 
 	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
 		<template id="producerTemplate" />
-		<!-- <routeBuilder ref="orderPublishRoute" /> -->
-		<routeBuilder ref="orderProcessRoute" />
+		<routeBuilder ref="orderProcessRoute" /> 
 	</camelContext>
 
 	<akka:camel-service>
 		<akka:camel-context ref="camel" />
 	</akka:camel-service>
 
-	<akka:dispatcher id="dispatcher-1" type="executor-based-event-driven-work-stealing"
-		name="myDispatcher">
+	<akka:dispatcher id="dispatcher-1"
+		type="executor-based-event-driven-work-stealing" name="myDispatcher">
 		<akka:thread-pool queue="bounded-linked-blocking-queue"
-			capacity="10" fairness="true" core-pool-size="1" max-pool-size="20"
+			capacity="10" fairness="true" core-pool-size="10" max-pool-size="20"
 			keep-alive="60" rejection-policy="caller-runs-policy" />
 	</akka:dispatcher>
 
-	<akka:typed-actor id="orderActor" 
-		interface="org.surya.camel_akka.actor.IOrderProcessor" implementation="org.surya.camel_akka.actor.OrderProcessor"
-		timeout="3000" scope="prototype">
-		<akka:dispatcher ref="dispatcher-1"/>
+	<akka:typed-actor id="orderTaker"
+		interface="org.surya.camel_akka.actor.IOrderProcessor" implementation="org.surya.camel_akka.actor.OrderTaker"
+		timeout="3000" scope="singleton">
+		<akka:dispatcher ref="dispatcher-1" />
 	</akka:typed-actor>
+
+	<akka:untyped-actor id="myActor"
+		implementation="org.surya.camel_akka.actor.OrderProcessor2" scope="prototype"
+		autostart="true">
+	</akka:untyped-actor>
 </beans>
